@@ -69,7 +69,7 @@ jobs:
       - name: Build iOS App
         run: |
           cd ios/App
-          xcodebuild -workspace App.xcworkspace -scheme App -sdk iphoneos -allowProvisioningUpdates build
+          xcodebuild -project App.xcodeproj -scheme App -sdk iphoneos -allowProvisioningUpdates build
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
