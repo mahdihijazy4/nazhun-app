@@ -1,4 +1,4 @@
-package com.nazhun.app;
+package com.mh.nazehon;
 
 import com.getcapacitor.BridgeActivity;
 
