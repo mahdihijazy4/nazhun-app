@@ -1,0 +1,107 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap");
+@import url("https://unpkg.com/leaflet@1.9.4/dist/leaflet.css");
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --color-village-green: #2ecc71;
+  --color-village-glow: rgba(46, 204, 113, 0.4);
+
+  --color-theme-black: var(--theme-black, #000000);
+  --color-theme-white: var(--theme-white, #ffffff);
+
+  --color-zinc-950: var(--theme-zinc-950, #09090b);
+  --color-zinc-900: var(--theme-zinc-900, #18181b);
+  --color-zinc-800: var(--theme-zinc-800, #27272a);
+  --color-zinc-700: var(--theme-zinc-700, #3f3f46);
+  --color-zinc-600: var(--theme-zinc-600, #52525b);
+  --color-zinc-500: var(--theme-zinc-500, #71717a);
+  --color-zinc-400: var(--theme-zinc-400, #a1a1aa);
+  --color-zinc-300: var(--theme-zinc-300, #d4d4d8);
+  --color-zinc-200: var(--theme-zinc-200, #e4e4e7);
+  --color-zinc-100: var(--theme-zinc-100, #f4f4f5);
+  --color-zinc-50: var(--theme-zinc-50, #fafafa);
+}
+
+:root {
+  --theme-bg-body: #0a0f0d;
+  --theme-bg-gradient-start: #1a2a22;
+  --theme-bg-gradient-end: #0a0f0d;
+  --color-glass-white: rgba(255, 255, 255, 0.05);
+  --color-glass-black: rgba(0, 0, 0, 0.4);
+  --shadow-glass: rgba(0, 0, 0, 0.37);
+  --shadow-glass-dark: rgba(0, 0, 0, 0.5);
+}
+
+html[data-theme="light"] {
+  --theme-black: #ffffff;
+  --theme-white: #000000;
+
+  --theme-zinc-950: #ffffff;
+  --theme-zinc-900: #fafafa;
+  --theme-zinc-800: #f4f4f5;
+  --theme-zinc-700: #e4e4e7;
+  --theme-zinc-600: #d4d4d8;
+  --theme-zinc-500: #a1a1aa;
+  --theme-zinc-400: #71717a;
+  --theme-zinc-300: #52525b;
+  --theme-zinc-200: #3f3f46;
+  --theme-zinc-100: #27272a;
+  --theme-zinc-50: #18181b;
+
+  --theme-bg-body: #f7f9f8;
+  --theme-bg-gradient-start: #e0ebe5;
+  --theme-bg-gradient-end: #f7f9f8;
+
+  --color-glass-white: rgba(0, 0, 0, 0.05);
+  --color-glass-black: rgba(255, 255, 255, 0.4);
+  --shadow-glass: rgba(0, 0, 0, 0.05);
+  --shadow-glass-dark: rgba(0, 0, 0, 0.1);
+}
+
+body {
+  @apply text-theme-white selection:bg-village-green selection:text-theme-black transition-colors duration-500;
+  background-color: var(--theme-bg-body);
+  background-image: radial-gradient(
+    circle at 50% -20%,
+    var(--theme-bg-gradient-start) 0%,
+    var(--theme-bg-gradient-end) 100%
+  );
+  overscroll-behavior-y: none;
+  min-height: 100vh;
+}
+
+.glass {
+  @apply backdrop-blur-xl border border-[var(--color-glass-white)] bg-[var(--color-glass-white)];
+  box-shadow: 0 8px 32px 0 var(--shadow-glass);
+}
+
+.glass-dark {
+  @apply backdrop-blur-2xl border border-[var(--color-glass-white)] bg-[var(--color-glass-black)];
+  box-shadow: 0 4px 20px 0 var(--shadow-glass-dark);
+}
+
+.glow-green {
+  box-shadow: 0 0 15px var(--color-village-glow);
+}
+
+.glow-text-green {
+  text-shadow: 0 0 10px var(--color-village-glow);
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Snap scroll utilities */
+.snap-y {
+  scroll-snap-type: y mandatory;
+}
+.snap-start {
+  scroll-snap-align: start;
+}

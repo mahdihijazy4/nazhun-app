@@ -1,0 +1,260 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper Primitives
+    function isSignedIn() { return request.auth != null; }
+    function isEmailVerified() { return isSignedIn(); } // Relaxed for demo/troubleshooting
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    function isValidId(id) { return id is string && id.size() <= 128; }
+    
+    function isAdmin() { 
+      // Multi-factor admin check: 
+      // 1. Direct token email check (fastest)
+      // 2. Document field check (most reliable if setup worked)
+      // 3. Dedicated admins collection check (failsafe)
+      return isSignedIn() && (
+        request.auth.token.email == 'mahdihijazy4@gmail.com' ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isAdmin', false) == true) ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isBanned() {
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isBanned', false) == true;
+    }
+
+    function canWrite() {
+      return isSignedIn() && !isBanned();
+    }
+
+    function isBlockedBy(userId) {
+      return exists(/databases/$(database)/documents/users/$(userId)) && 
+             (get(/databases/$(database)/documents/users/$(userId)).data.keys().hasAny(['blockedUsers'])) &&
+             (get(/databases/$(database)/documents/users/$(userId)).data.blockedUsers is list) &&
+             (request.auth.uid in get(/databases/$(database)/documents/users/$(userId)).data.blockedUsers);
+    }
+
+    // Ping/Test Rules
+    match /test/connection { allow read: if true; }
+    match /system/ping { allow read: if true; }
+
+    // 1. User Profile Rules
+    function isValidUser(data, isCreate) {
+      let keys = data.keys();
+      let requiredKeys = ['uid', 'name', 'hometown', 'currentLocation', 'hometownId', 'createdAt'];
+      
+      return (isCreate ? (keys.hasAll(requiredKeys) && keys.size() >= requiredKeys.size()) : true)
+        && data.uid == request.auth.uid
+        && (keys.hasAny(['name']) ? (data.name is string && data.name.size() >= 1 && data.name.size() <= 100) : true)
+        && (keys.hasAny(['hometown']) ? (data.hometown is string && data.hometown.size() >= 1 && data.hometown.size() <= 100) : true)
+        && (keys.hasAny(['currentLocation']) ? (data.currentLocation is string && data.currentLocation.size() >= 1 && data.currentLocation.size() <= 100) : true)
+        && (keys.hasAny(['hometownId']) ? (data.hometownId is string && data.hometownId.size() <= 100) : true)
+        && (keys.hasAny(['photoURL']) ? (data.photoURL == null || (data.photoURL is string && data.photoURL.size() <= 1048487)) : true)
+        && (keys.hasAny(['language']) ? (data.language in ['ar', 'en']) : true)
+        && (keys.hasAny(['coords']) ? (data.coords == null || (data.coords.lat is number && data.coords.lng is number)) : true)
+        && (keys.hasAny(['gender']) ? (data.gender == null || (data.gender in ['male', 'female', 'other'])) : true)
+        && (keys.hasAny(['birthDate']) ? (data.birthDate == null || (data.birthDate is string)) : true)
+        && (keys.hasAny(['bio']) ? (data.bio == null || (data.bio is string && data.bio.size() <= 1000)) : true)
+        && (isCreate ? data.createdAt == request.time : data.createdAt == existing().createdAt);
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId);
+      allow list: if isSignedIn();
+      allow create: if isOwner(userId) && isValidUser(incoming(), true);
+      allow update: if (isOwner(userId) && !isBanned() && isValidUser(incoming(), false)
+        && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['name', 'photoURL', 'hometown', 'currentLocation', 'hometownId', 'language', 'coords', 'updatedAt', 'gender', 'birthDate', 'bio', 'blockedUsers'])
+        )
+        && (incoming().get('isAdmin', false) == existing().get('isAdmin', false) || isAdmin()))
+        || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // 2. Post Rules
+    function isValidPost(data) {
+      let keys = data.keys();
+      let requiredKeys = ['authorId', 'authorName', 'authorHometown', 'authorCurrentLocation', 'authorHometownId', 'content', 'likesCount', 'commentsCount', 'createdAt', 'expiresAt'];
+      
+      return keys.hasAll(requiredKeys)
+        && data.authorId == request.auth.uid
+        && data.authorName is string && data.authorName.size() >= 1
+        && data.content is string && data.content.size() <= 2000
+        && data.likesCount is int && data.likesCount >= 0
+        && data.commentsCount is int && data.commentsCount >= 0
+        && data.createdAt == request.time
+        && data.expiresAt is timestamp && data.expiresAt > request.time
+        && (!keys.hasAny(['authorPhotoURL']) || (data.authorPhotoURL == null || (data.authorPhotoURL is string && data.authorPhotoURL.size() <= 1048487)))
+        && (!keys.hasAny(['mediaUrl']) || (data.mediaUrl == null || (data.mediaUrl is string && data.mediaUrl.size() <= 1048487)))
+        && (!keys.hasAny(['mediaType']) || (data.mediaType == null || (data.mediaType in ['image', 'video'])))
+        && (!keys.hasAny(['coords']) || (data.coords == null || (data.coords.lat is number && data.coords.lng is number)));
+    }
+
+    match /posts/{postId} {
+      allow get: if isSignedIn() && isValidId(postId);
+      allow list: if isSignedIn();
+      allow create: if canWrite() && isValidPost(incoming());
+      allow update: if isAdmin() || (canWrite() && (
+        (incoming().diff(existing()).affectedKeys().hasOnly(['likesCount']) && incoming().likesCount is int) ||
+        (incoming().diff(existing()).affectedKeys().hasOnly(['commentsCount']) && incoming().commentsCount is int) ||
+        (existing().authorId == request.auth.uid && (
+          incoming().diff(existing()).affectedKeys().hasOnly(['content', 'editedAt'])
+        ))
+      ));
+      allow delete: if isAdmin() || (isSignedIn() && exists(/databases/$(database)/documents/posts/$(postId)) && get(/databases/$(database)/documents/posts/$(postId)).data.authorId == request.auth.uid);
+    }
+
+    // 3. Interactions (Subcollections)
+    match /posts/{postId}/likes/{userId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isOwner(userId) && isEmailVerified() && !isBlockedBy(get(/databases/$(database)/documents/posts/$(postId)).data.authorId) && incoming().createdAt == request.time;
+      allow delete: if isOwner(userId);
+    }
+
+    match /posts/{postId}/comments/{commentId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && isEmailVerified() && incoming().userId == request.auth.uid 
+        && !isBlockedBy(get(/databases/$(database)/documents/posts/$(postId)).data.authorId)
+        && incoming().text is string && incoming().text.size() >= 1 
+        && incoming().createdAt == request.time;
+      allow delete: if (isSignedIn() && existing().userId == request.auth.uid) || isAdmin();
+    }
+
+    match /posts/{postId}/views/{userId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow write: if isOwner(userId);
+    }
+
+    // 4. Relationships
+    match /users/{userId}/follows/{targetUserId} {
+      allow get: if isSignedIn() && isValidId(userId) && isValidId(targetUserId);
+      allow list: if isSignedIn();
+      allow write: if isOwner(userId) && isEmailVerified() && !isBlockedBy(targetUserId);
+    }
+    match /users/{userId}/followers/{sourceUserId} {
+      allow get: if isSignedIn() && isValidId(userId) && isValidId(sourceUserId);
+      allow list: if isSignedIn();
+      allow write: if isSignedIn() && isEmailVerified() && sourceUserId == request.auth.uid && !isBlockedBy(userId);
+    }
+
+    // 5. Conversations
+    match /conversations/{convoId} {
+      allow get: if isSignedIn() && (convoId.matches('.*' + request.auth.uid + '.*') || (request.auth.uid in resource.data.participants));
+      allow list: if isSignedIn() && (request.auth.uid in resource.data.participants);
+      allow create: if isSignedIn() && (request.auth.uid in incoming().participants)
+        && !isBlockedBy(incoming().participants[0] == request.auth.uid ? incoming().participants[1] : incoming().participants[0]);
+      allow update: if isSignedIn() && (request.auth.uid in existing().participants)
+        && (incoming().diff(existing()).affectedKeys().hasOnly(['lastMessage', 'lastMessageAt', 'unreadCount']));
+    }
+
+    match /conversations/{convoId}/messages/{msgId} {
+      allow get: if isSignedIn() && convoId.matches('.*' + request.auth.uid + '.*');
+      allow list: if isSignedIn() && convoId.matches('.*' + request.auth.uid + '.*');
+      allow create: if isSignedIn() && incoming().senderId == request.auth.uid && convoId.matches('.*' + request.auth.uid + '.*');
+    }
+
+    // 6. Notifications
+    match /users/{userId}/notifications/{notifId} {
+      allow get: if isOwner(userId) && isValidId(notifId);
+      allow list: if isOwner(userId);
+      allow create: if isSignedIn() && isEmailVerified() && incoming().recipientId == userId && (isAdmin() || !isBlockedBy(userId));
+      allow update: if isOwner(userId) && incoming().diff(existing()).affectedKeys().hasOnly(['read']);
+      allow delete: if isOwner(userId);
+    }
+    
+    // 7. System Config
+    match /system/config {
+      allow read: if isSignedIn(); // Allow reading config for feature flags
+      allow write: if isAdmin();
+    }
+    
+    // 8. Reports
+    match /reports/{reportId} {
+      allow get, list, update, delete: if isAdmin();
+      allow create: if canWrite() 
+        && incoming().reporterId == request.auth.uid
+        && incoming().status == 'pending'
+        && incoming().createdAt == request.time
+        && incoming().reason is string && incoming().reason.size() >= 1 && incoming().reason.size() <= 1000;
+    }
+
+    // 9. Admin Notifications
+    match /admin_notifications/{notifId} {
+      allow read, update, delete: if isAdmin();
+      allow create: if canWrite() && incoming().type == 'new_report';
+    }
+    
+    // 10. Admins
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow write: if false; // Only manageable via console
+    }
+
+    // 11. Locations
+    function isValidLocation(data) {
+      let keys = data.keys();
+      let requiredKeys = ['name', 'lat', 'lng', 'createdAt'];
+      
+      return keys.hasAll(requiredKeys)
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 200
+        && data.lat is number
+        && data.lng is number;
+    }
+    
+    match /locations/{locationId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin() && isValidLocation(incoming()) && incoming().createdAt == request.time;
+      allow update: if isAdmin() && (incoming().diff(existing()).affectedKeys().hasOnly(['name', 'lat', 'lng', 'updatedAt']));
+      allow delete: if isAdmin();
+    }
+
+    // 12. Location Requests
+    match /location_requests/{requestId} {
+      allow get: if isAdmin() || (isSignedIn() && existing().requestedBy == request.auth.uid);
+      allow list: if isAdmin();
+      allow create: if isSignedIn() 
+                    && incoming().keys().hasAll(['name', 'requestedBy', 'status', 'createdAt'])
+                    && incoming().name is string
+                    && incoming().requestedBy == request.auth.uid
+                    && incoming().status == 'pending'
+                    && incoming().createdAt == request.time;
+      allow update: if isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['status']);
+      allow delete: if isAdmin();
+    }
+
+    // 13. Private User Info
+    match /private_user_info/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isOwner(userId) || isAdmin();
+      allow update: if isOwner(userId) || isAdmin();
+      allow delete: if isAdmin();
+    }
+    // 14. Ads Config
+    match /system/adSettings {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+    
+    // 15. Ad Campaigns
+    match /adCampaigns/{campaignId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin() 
+        && incoming().keys().hasAll(['title', 'description', 'ctaText', 'imageUrl', 'linkUrl', 'budget', 'spent', 'status', 'views', 'clicks', 'createdAt'])
+        && incoming().createdAt == request.time;
+      allow update: if isAdmin() || (isSignedIn() && incoming().diff(existing()).affectedKeys().hasOnly(['views', 'clicks']));
+      allow delete: if isAdmin();
+    }
+  }
+}

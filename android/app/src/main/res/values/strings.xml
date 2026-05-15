@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Nazhun</string>
+    <string name="title_activity_main">Nazhun</string>
+    <string name="package_name">com.nazhun.app</string>
+    <string name="custom_url_scheme">com.nazhun.app</string>
+</resources>

@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/
+.gradle/
+local.properties
+*.log
+.env*
+!.env.example
+.DS_Store
+android/.gradle/
+android/app/build/
+ios/Pods/
+ios/DerivedData/
+Build_Android_APK.ps1

@@ -1,0 +1,281 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User account information and geographic identity.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "hometown": { "type": "string", "description": "The village the user comes from" },
+        "currentLocation": { "type": "string", "description": "Where the user currently lives" },
+        "coords": { 
+          "type": "object",
+          "properties": {
+            "lat": { "type": "number" },
+            "lng": { "type": "number" }
+          }
+        },
+        "language": { "type": "string", "enum": ["ar", "en"] },
+        "hometownId": { "type": "string", "description": "Normalized identifier for group sorting" },
+        "isBanned": { "type": "boolean", "description": "Whether the user is blocked from the platform" },
+        "blockedUsers": { "type": "array", "items": { "type": "string" }, "description": "List of UIDs blocked by this user" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "name", "hometown", "currentLocation"]
+    },
+    "AdminNotification": {
+      "title": "Admin Notification",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "reportId": { "type": "string" },
+        "reporterName": { "type": "string" },
+        "type": { "type": "string", "enum": ["new_report"] },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Post": {
+      "title": "Ephemeral Post",
+      "description": "A post that expires after 24 hours.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "authorId": { "type": "string" },
+        "authorName": { "type": "string" },
+        "authorHometown": { "type": "string" },
+        "authorCurrentLocation": { "type": "string" },
+        "authorHometownId": { "type": "string" },
+        "coords": { 
+          "type": "object",
+          "properties": {
+            "lat": { "type": "number" },
+            "lng": { "type": "number" }
+          }
+        },
+        "content": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "likesCount": { "type": "number" },
+        "commentsCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "expiresAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["authorId", "content", "createdAt", "expiresAt"]
+    },
+    "Notification": {
+      "title": "User Notification",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "recipientId": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "type": { "type": "string", "enum": ["like", "comment", "message"] },
+        "postId": { "type": "string" },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Follow": {
+      "title": "Follow Relationship",
+      "description": "Relationship between a follower and a followed user.",
+      "type": "object",
+      "properties": {
+        "followerId": { "type": "string" },
+        "followedId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["followerId", "followedId"]
+    },
+    "Like": {
+      "title": "Post Like",
+      "type": "object",
+      "properties": {
+        "postId": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Comment": {
+      "title": "Post Comment",
+      "type": "object",
+      "properties": {
+        "postId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Message": {
+      "title": "Direct Message",
+      "type": "object",
+      "properties": {
+        "conversationId": { "type": "string" },
+        "senderId": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "View": {
+      "title": "Post View",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Conversation": {
+      "title": "Messaging Conversation",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "participants": { "type": "array", "items": { "type": "string" } },
+        "lastMessage": { "type": "string" },
+        "lastMessageAt": { "type": "string", "format": "date-time" },
+        "unreadCount": { "type": "object" }
+      }
+    },
+    "Location": {
+      "title": "Application Location",
+      "description": "Locations used for distances and home towns.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "lat", "lng"]
+    },
+    "LocationRequest": {
+      "title": "Location Request",
+      "description": "User requests for unlisted locations",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "requestedBy": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "requestedBy", "status", "createdAt"]
+    },
+    "Report": {
+      "title": "Content Report",
+      "description": "User reports for inappropriate content.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "reporterId": { "type": "string" },
+        "reporterName": { "type": "string" },
+        "targetId": { "type": "string", "description": "The ID of the post being reported" },
+        "authorId": { "type": "string", "description": "The ID of the post author" },
+        "reason": { "type": "string" },
+        "type": { "type": "string", "enum": ["post"] },
+        "status": { "type": "string", "enum": ["pending", "reviewed", "dismissed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["reporterId", "targetId", "reason", "type", "createdAt"]
+    },
+    "AdSettings": {
+      "title": "Ad Settings",
+      "type": "object",
+      "properties": {
+        "adMode": { "type": "string", "enum": ["off", "internal", "google", "hybrid"] },
+        "feedFrequency": { "type": "number" },
+        "searchFrequency": { "type": "number" },
+        "googleAdClient": { "type": "string" },
+        "googleFeedAdSlot": { "type": "string" },
+        "googleSearchAdSlot": { "type": "string" }
+      }
+    },
+    "AdCampaign": {
+      "title": "Ad Campaign",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "linkUrl": { "type": "string" },
+        "budget": { "type": "number" },
+        "spent": { "type": "number" },
+        "status": { "type": "string", "enum": ["active", "paused", "completed"] },
+        "views": { "type": "number" },
+        "clicks": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "firestore": {
+    "system/adSettings": {
+      "schema": "AdSettings",
+      "description": "System-wide settings for advertisements"
+    },
+    "adCampaigns/{campaignId}": {
+      "schema": "AdCampaign",
+      "description": "Internal ad campaigns managed by admins"
+    },
+    "users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "posts/{postId}": {
+      "schema": "Post",
+      "description": "Public ephemeral feed posts"
+    },
+    "users/{userId}/follows/{targetUserId}": {
+      "schema": "Follow",
+      "description": "Users followed by this user"
+    },
+    "users/{userId}/followers/{sourceUserId}": {
+      "schema": "Follow",
+      "description": "Users following this user"
+    },
+    "posts/{postId}/likes/{userId}": {
+      "schema": "Like",
+      "description": "Likes on a post"
+    },
+    "posts/{postId}/comments/{commentId}": {
+      "schema": "Comment",
+      "description": "Comments on a post"
+    },
+    "posts/{postId}/views/{userId}": {
+      "schema": "View",
+      "description": "Users who viewed the post"
+    },
+    "conversations/{convoId}": {
+      "schema": "Conversation",
+      "description": "Chat conversations"
+    },
+    "conversations/{convoId}/messages/{msgId}": {
+      "schema": "Message",
+      "description": "Messages in a conversation"
+    },
+    "users/{userId}/notifications/{notifId}": {
+      "schema": "Notification",
+      "description": "User specific notifications"
+    },
+    "reports/{reportId}": {
+      "schema": "Report",
+      "description": "User reports for moderation"
+    },
+    "admin_notifications/{notifId}": {
+      "schema": "AdminNotification",
+      "description": "Notifications for administrators"
+    },
+    "locations/{locationId}": {
+      "schema": "Location",
+      "description": "Locations for application filtering and calculation"
+    },
+    "location_requests/{requestId}": {
+      "schema": "LocationRequest",
+      "description": "Requests for application locations"
+    }
+  }
+}

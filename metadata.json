@@ -1,0 +1,8 @@
+{
+  "name": "نازحون",
+  "description": "A geospatial social network for 'Village Affinity' and proximity-based bonds, featuring ephemeral moments.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": []
+}
